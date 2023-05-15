@@ -44,9 +44,13 @@ import org.finos.legend.engine.api.analytics.DataSpaceAnalytics;
 import org.finos.legend.engine.api.analytics.DiagramAnalytics;
 import org.finos.legend.engine.api.analytics.LineageAnalytics;
 import org.finos.legend.engine.api.analytics.MappingAnalytics;
+import org.finos.legend.engine.api.analytics.StoreEntitlementAnalytics;
 import org.finos.legend.engine.application.query.api.ApplicationQuery;
 import org.finos.legend.engine.application.query.configuration.ApplicationQueryConfiguration;
 import org.finos.legend.engine.authentication.LegendDefaultDatabaseAuthenticationFlowProviderConfiguration;
+import org.finos.legend.engine.entitlement.services.EntitlementModelObjectMapperFactory;
+import org.finos.legend.engine.entitlement.services.EntitlementServiceExtension;
+import org.finos.legend.engine.entitlement.services.EntitlementServiceExtensionLoader;
 import org.finos.legend.engine.external.shared.format.extension.GenerationExtension;
 import org.finos.legend.engine.external.shared.format.extension.GenerationMode;
 import org.finos.legend.engine.external.shared.format.generations.loaders.CodeGenerators;
@@ -54,6 +58,7 @@ import org.finos.legend.engine.external.shared.format.generations.loaders.Schema
 import org.finos.legend.engine.external.shared.format.imports.loaders.CodeImports;
 import org.finos.legend.engine.external.shared.format.imports.loaders.SchemaImports;
 import org.finos.legend.engine.external.shared.format.model.api.ExternalFormats;
+import org.finos.legend.engine.generation.artifact.api.ArtifactGenerationExtensionApi;
 import org.finos.legend.engine.language.pure.compiler.api.Compile;
 import org.finos.legend.engine.language.pure.compiler.toPureGraph.PureModel;
 import org.finos.legend.engine.language.pure.grammar.api.grammarToJson.GrammarToJson;
@@ -72,6 +77,9 @@ import org.finos.legend.engine.plan.execution.api.ExecutePlanStrategic;
 import org.finos.legend.engine.plan.execution.api.concurrent.ConcurrentExecutionNodeExecutorPoolInfo;
 import org.finos.legend.engine.plan.execution.service.api.ServiceModelingApi;
 import org.finos.legend.engine.plan.execution.stores.inMemory.plugin.InMemory;
+import org.finos.legend.engine.plan.execution.stores.mongodb.plugin.MongoDBStoreExecutor;
+import org.finos.legend.engine.plan.execution.stores.mongodb.plugin.MongoDBStoreExecutorBuilder;
+import org.finos.legend.engine.plan.execution.stores.mongodb.plugin.MongoDBStoreExecutorConfiguration;
 import org.finos.legend.engine.plan.execution.stores.relational.api.RelationalExecutorInformation;
 import org.finos.legend.engine.plan.execution.stores.relational.config.RelationalExecutionConfiguration;
 import org.finos.legend.engine.plan.execution.stores.relational.connection.api.schema.SchemaExplorationApi;
@@ -82,6 +90,7 @@ import org.finos.legend.engine.plan.execution.stores.service.plugin.ServiceStore
 import org.finos.legend.engine.plan.execution.stores.service.plugin.ServiceStoreExecutorBuilder;
 import org.finos.legend.engine.plan.generation.extension.PlanGeneratorExtension;
 import org.finos.legend.engine.protocol.pure.v1.PureProtocolObjectMapperFactory;
+import org.finos.legend.engine.protocol.pure.v1.model.PureProtocol;
 import org.finos.legend.engine.query.graphQL.api.debug.GraphQLDebug;
 import org.finos.legend.engine.query.graphQL.api.execute.GraphQLExecute;
 import org.finos.legend.engine.query.graphQL.api.grammar.GraphQLGrammar;
@@ -107,6 +116,7 @@ import org.finos.legend.engine.shared.core.vault.PropertyVaultConfiguration;
 import org.finos.legend.engine.shared.core.vault.Vault;
 import org.finos.legend.engine.shared.core.vault.VaultConfiguration;
 import org.finos.legend.engine.shared.core.vault.VaultFactory;
+import org.finos.legend.engine.test.runner.mapping.api.LegacyMappingRunnerApi;
 import org.finos.legend.engine.testable.api.Testable;
 import org.finos.legend.pure.generated.Root_meta_pure_extension_Extension;
 import org.finos.legend.server.pac4j.LegendPac4jBundle;
@@ -162,6 +172,7 @@ public class Server<T extends ServerConfiguration> extends Application<T>
         bootstrap.setConfigurationSourceProvider(new SubstitutingSourceProvider(bootstrap.getConfigurationSourceProvider(), new EnvironmentVariableSubstitutor(true)));
 
         PureProtocolObjectMapperFactory.withPureProtocolExtensions(bootstrap.getObjectMapper());
+        EntitlementModelObjectMapperFactory.withEntitlementModelExtensions(bootstrap.getObjectMapper());
         VaultFactory.withVaultConfigurationExtensions(bootstrap.getObjectMapper());
         ObjectMapperFactory.withStandardConfigurations(bootstrap.getObjectMapper());
 
@@ -236,12 +247,15 @@ public class Server<T extends ServerConfiguration> extends Application<T>
         ServiceStoreExecutionConfiguration serviceStoreExecutionConfiguration = ServiceStoreExecutionConfiguration.builder().withCredentialProviderProvider(credentialProviderProvider).build();
         ServiceStoreExecutor serviceStoreExecutor = (ServiceStoreExecutor) new ServiceStoreExecutorBuilder().build(serviceStoreExecutionConfiguration);
 
-        PlanExecutor planExecutor = PlanExecutor.newPlanExecutor(relationalStoreExecutor, serviceStoreExecutor, InMemory.build());
+        MongoDBStoreExecutorConfiguration mongoDBExecutorConfiguration = MongoDBStoreExecutorConfiguration.newInstance().withCredentialProviderProvider(credentialProviderProvider).build();
+        MongoDBStoreExecutor mongoDBStoreExecutor = (MongoDBStoreExecutor) new MongoDBStoreExecutorBuilder().build(mongoDBExecutorConfiguration);
+
+        PlanExecutor planExecutor = PlanExecutor.newPlanExecutor(relationalStoreExecutor, serviceStoreExecutor, mongoDBStoreExecutor, InMemory.build());
 
         // Session Management
         SessionTracker sessionTracker = new SessionTracker();
         SessionHandler sessionHandler = new SessionHandler();
-        StoreExecutableManagerSessionListener  storeExecutableManagerSessionListener = new StoreExecutableManagerSessionListener();
+        StoreExecutableManagerSessionListener storeExecutableManagerSessionListener = new StoreExecutableManagerSessionListener();
         if (serverConfiguration.sessionCookie != null)
         {
             sessionHandler.setSessionCookie(serverConfiguration.sessionCookie);
@@ -261,6 +275,9 @@ public class Server<T extends ServerConfiguration> extends Application<T>
         environment.jersey().register(new Memory());
         environment.jersey().register(new RelationalExecutorInformation());
         environment.jersey().register(new ConcurrentExecutionNodeExecutorPoolInfo(Collections.emptyList()));
+
+        // Protocol
+        environment.jersey().register(new PureProtocol());
 
         // Grammar
         environment.jersey().register(new GrammarToJson());
@@ -304,7 +321,7 @@ public class Server<T extends ServerConfiguration> extends Application<T>
         environment.jersey().register(new SqlGrammar());
 
         // Service
-        environment.jersey().register(new ServiceModelingApi(modelManager, serverConfiguration.deployment.mode,planExecutor));
+        environment.jersey().register(new ServiceModelingApi(modelManager, serverConfiguration.deployment.mode, planExecutor));
 
         // Query
         environment.jersey().register(new ApplicationQuery(ApplicationQueryConfiguration.getMongoClient()));
@@ -315,12 +332,16 @@ public class Server<T extends ServerConfiguration> extends Application<T>
 
         // External Format
         environment.jersey().register(new ExternalFormats(modelManager));
+        environment.jersey().register(new ArtifactGenerationExtensionApi(modelManager));
 
         // Analytics
+        List<EntitlementServiceExtension> entitlementServiceExtensions = EntitlementServiceExtensionLoader.extensions();
         environment.jersey().register(new MappingAnalytics(modelManager));
+        environment.jersey().register(new LegacyMappingRunnerApi(modelManager));
         environment.jersey().register(new DiagramAnalytics(modelManager));
-        environment.jersey().register(new DataSpaceAnalytics(modelManager, generatorExtensions));
+        environment.jersey().register(new DataSpaceAnalytics(modelManager, generatorExtensions, entitlementServiceExtensions));
         environment.jersey().register(new LineageAnalytics(modelManager));
+        environment.jersey().register(new StoreEntitlementAnalytics(modelManager, entitlementServiceExtensions));
 
         // Testable
         environment.jersey().register(new Testable(modelManager));

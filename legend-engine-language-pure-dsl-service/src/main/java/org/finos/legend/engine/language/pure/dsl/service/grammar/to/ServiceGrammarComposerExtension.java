@@ -15,6 +15,7 @@
 package org.finos.legend.engine.language.pure.dsl.service.grammar.to;
 
 import org.eclipse.collections.api.block.function.Function3;
+import org.eclipse.collections.api.list.MutableList;
 import org.eclipse.collections.impl.factory.Lists;
 import org.eclipse.collections.impl.utility.LazyIterate;
 import org.eclipse.collections.impl.utility.ListIterate;
@@ -66,10 +67,24 @@ public class ServiceGrammarComposerExtension implements PureGrammarComposerExten
     @Override
     public List<Function3<List<PackageableElement>, PureGrammarComposerContext, List<String>, PureFreeSectionGrammarComposerResult>> getExtraFreeSectionComposers()
     {
-        return Lists.mutable.with((elements, context, composedSections) ->
+        return Lists.fixedSize.of((elements, context, composedSections) ->
         {
-            List<Service> composableElements = ListIterate.selectInstancesOf(elements, Service.class);
-            return composableElements.isEmpty() ? null : new PureFreeSectionGrammarComposerResult(LazyIterate.collect(composableElements, el -> ServiceGrammarComposerExtension.renderService(el, context)).makeString("###" + ServiceParserExtension.NAME + "\n", "\n\n", ""), composableElements);
+            MutableList<PackageableElement> composableElements = ListIterate.select(elements, e -> e instanceof Service || e instanceof ExecutionEnvironmentInstance);
+            return composableElements.isEmpty()
+                    ? null
+                    : new PureFreeSectionGrammarComposerResult(composableElements
+                    .collect(element ->
+                    {
+                        if (element instanceof Service)
+                        {
+                            return ServiceGrammarComposerExtension.renderService((Service) element, context);
+                        }
+                        else
+                        {
+                            return renderExecutionEnvironment((ExecutionEnvironmentInstance) element, context);
+                        }
+                    })
+                    .makeString("###" + ServiceParserExtension.NAME + "\n", "\n\n", ""), composableElements);
         });
     }
 

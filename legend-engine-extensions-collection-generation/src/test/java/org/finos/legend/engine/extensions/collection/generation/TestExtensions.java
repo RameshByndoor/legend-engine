@@ -19,9 +19,14 @@ import org.eclipse.collections.api.factory.Sets;
 import org.eclipse.collections.api.list.MutableList;
 import org.eclipse.collections.api.set.MutableSet;
 import org.eclipse.collections.impl.utility.Iterate;
+import org.finos.legend.engine.entitlement.services.EntitlementServiceExtension;
+import org.finos.legend.engine.entitlement.services.EntitlementServiceExtensionLoader;
+import org.finos.legend.engine.entitlement.services.RelationalDatabaseEntitlementServiceExtension;
+import org.finos.legend.engine.external.format.flatdata.driver.spi.FlatDataDriverDescription;
 import org.finos.legend.engine.external.shared.format.extension.GenerationExtension;
 import org.finos.legend.engine.external.shared.format.model.ExternalFormatExtension;
 import org.finos.legend.engine.generation.DataSpaceAnalyticsArtifactGenerationExtension;
+import org.finos.legend.engine.generation.OpenApiArtifactGenerationExtension;
 import org.finos.legend.engine.generation.SearchDocumentArtifactGenerationExtension;
 import org.finos.legend.engine.language.pure.compiler.toPureGraph.PureModel;
 import org.finos.legend.engine.language.pure.compiler.toPureGraph.extension.CompilerExtension;
@@ -93,15 +98,27 @@ public class TestExtensions
     }
 
     @Test
+    public void testFlatDataDriverDescription()
+    {
+        assertHasExtensions(getExpectedFlatDataDriverDescriptionExtensions(), FlatDataDriverDescription.class);
+    }
+
+    @Test
     public void testExpectedArtifactGenerationExtensionsArePresent()
     {
         assertHasExtensions(ArtifactGenerationExtensionLoader.extensions(), getExpectedArtifactGenerationExtensions(), ArtifactGenerationExtension.class);
     }
 
     @Test
+    public void testExpectedEntitlementServiceExtensionsArePresent()
+    {
+        assertHasExtensions(EntitlementServiceExtensionLoader.extensions(), getExpectedEntitlementServiceExtensions(), EntitlementServiceExtension.class);
+    }
+
+    @Test
     public void testCodeRepositories()
     {
-        Assert.assertEquals(Lists.mutable.withAll(getExpectedCodeRepositories()).sortThis(), CodeRepositoryProviderHelper.findCodeRepositories().collect(CodeRepository::getName, Lists.mutable.empty()).select(c -> !c.startsWith("platform_")).sortThis());
+        Assert.assertEquals(Lists.mutable.withAll(getExpectedCodeRepositories()).sortThis(), CodeRepositoryProviderHelper.findCodeRepositories().collect(CodeRepository::getName, Lists.mutable.empty()).select(c -> !c.startsWith("platform")).sortThis());
     }
 
     @Test
@@ -219,6 +236,7 @@ public class TestExtensions
                 .with(org.finos.legend.engine.protocol.pure.v1.TextProtocolExtension.class)
                 .with(org.finos.legend.engine.language.graphQL.grammar.integration.GraphQLPureProtocolExtension.class)
                 .with(org.finos.legend.engine.protocol.store.elasticsearch.v7.ElasticsearchV7ProtocolExtension.class)
+                .with(org.finos.legend.engine.protocol.mongodb.schema.metamodel.MongoDBPureProtocolExtension.class)
                 ;
     }
 
@@ -255,6 +273,7 @@ public class TestExtensions
                 .with(org.finos.legend.engine.language.pure.grammar.from.ServiceStoreGrammarParserExtension.class)
                 .with(TextParserExtension.class)
                 .with(org.finos.legend.engine.language.stores.elasticsearch.v7.from.ElasticsearchGrammarParserExtension.class)
+                .with(org.finos.legend.engine.language.pure.grammar.integration.MongoDBGrammarParserExtension.class)
                 ;
     }
 
@@ -280,6 +299,7 @@ public class TestExtensions
                 .with(org.finos.legend.engine.language.pure.dsl.authentication.grammar.to.AuthenticationGrammarComposerExtension.class)
                 .with(TextGrammarComposerExtension.class)
                 .with(org.finos.legend.engine.language.stores.elasticsearch.v7.to.ElasticsearchGrammarComposerExtension.class)
+                .with(org.finos.legend.engine.language.pure.grammar.integration.MongoDBGrammarComposerExtension.class)
                 ;
     }
 
@@ -306,6 +326,7 @@ public class TestExtensions
                 .with(org.finos.legend.engine.language.pure.compiler.toPureGraph.ServiceStoreCompilerExtension.class)
                 .with(org.finos.legend.engine.language.pure.dsl.authentication.compiler.toPureGraph.AuthenticationCompilerExtension.class)
                 .with(org.finos.legend.engine.language.stores.elasticsearch.v7.compiler.ElasticsearchCompilerExtension.class)
+                .with(org.finos.legend.engine.language.pure.grammar.integration.MongoDBCompilerExtension.class)
                 ;
     }
 
@@ -315,6 +336,7 @@ public class TestExtensions
         return Lists.mutable.<Class<? extends PlanGeneratorExtension>>empty()
                 .with(org.finos.legend.engine.plan.generation.extension.LegendPlanGeneratorExtension.class)
                 .with(org.finos.legend.engine.language.stores.elasticsearch.v7.plan.generation.ElasticsearchPlanGeneratorExtension.class)
+                .with(org.finos.legend.engine.language.pure.grammar.integration.plan.MongoDBPlanGeneratorExtension.class)
                 ;
     }
 
@@ -331,12 +353,34 @@ public class TestExtensions
                 .with(org.finos.legend.engine.external.format.daml.DamlFormatExtension.class);
     }
 
+    protected Iterable<? extends Class<? extends FlatDataDriverDescription>> getExpectedFlatDataDriverDescriptionExtensions()
+    {
+        // DO NOT DELETE ITEMS FROM THIS LIST (except when replacing them with something equivalent)
+        return Lists.mutable.<Class<? extends FlatDataDriverDescription>>empty()
+                .with(org.finos.legend.engine.external.format.flatdata.driver.core.DelimitedWithHeadingsDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.core.DelimitedWithoutHeadingsDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.core.FixedWidthDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.core.ImmaterialLinesDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.bloomberg.BloombergActionsDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.bloomberg.BloombergDataDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.bloomberg.BloombergExtendActionDriverDescription.class)
+                .with(org.finos.legend.engine.external.format.flatdata.driver.bloomberg.BloombergMetadataDriverDescription.class);
+    }
+
     protected Iterable<? extends Class<? extends ArtifactGenerationExtension>> getExpectedArtifactGenerationExtensions()
     {
         // DO NOT DELETE ITEMS FROM THIS LIST (except when replacing them with something equivalent)
         return Lists.mutable.<Class<? extends ArtifactGenerationExtension>>empty()
                 .with(DataSpaceAnalyticsArtifactGenerationExtension.class)
-                .with(SearchDocumentArtifactGenerationExtension.class);
+                .with(SearchDocumentArtifactGenerationExtension.class)
+                .with(OpenApiArtifactGenerationExtension.class);
+    }
+
+    protected Iterable<? extends Class<? extends EntitlementServiceExtension>> getExpectedEntitlementServiceExtensions()
+    {
+        // DO NOT DELETE ITEMS FROM THIS LIST (except when replacing them with something equivalent)
+        return Lists.mutable.<Class<? extends EntitlementServiceExtension>>empty()
+                .with(RelationalDatabaseEntitlementServiceExtension.class);
     }
 
     protected Iterable<String> getExpectedCodeRepositories()
@@ -356,6 +400,7 @@ public class TestExtensions
                 .with("core_external_language_morphir")
                 .with("core_external_format_flatdata")
                 .with("core_external_format_json")
+                .with("core_external_format_openapi")
                 .with("core_external_format_protobuf")
                 .with("core_external_format_xml")
                 .with("core_external_query_graphql")
@@ -370,6 +415,7 @@ public class TestExtensions
                 .with("core_relational_bigquery")
                 .with("core_relational_spanner")
                 .with("core_relational_trino")
+                .with("core_relational_store_entitlement")
                 .with("core_servicestore")
                 .with("core_authentication")
                 .with("core_text_metamodel")
@@ -382,6 +428,8 @@ public class TestExtensions
                 .with("core_external_format_xml_java_platform_binding")
                 .with("core_configuration")
                 .with("core_elasticsearch_seven_metamodel")
+                .with("core_nonrelational_mongodb")
+                .with("core_nonrelational_mongodb_java_platform_binding")
                 ;
     }
 }

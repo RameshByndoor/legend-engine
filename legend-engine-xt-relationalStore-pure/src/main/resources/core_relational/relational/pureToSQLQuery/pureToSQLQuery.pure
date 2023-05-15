@@ -1993,10 +1993,18 @@ function meta::relational::functions::pureToSqlQuery::processFunctionExpressionF
 function meta::relational::functions::pureToSqlQuery::flattenConcatenate(f:ValueSpecification[1]):ValueSpecification[*]
 {
    $f->match([
-      fe:FunctionExpression[1] | if ($fe.func->in([concatenate_T_MANY__T_MANY__T_MANY_, union_T_MANY__T_MANY__T_MANY_, concatenate_TabularDataSet_1__TabularDataSet_1__TabularDataSet_1_]),
+      fe:FunctionExpression[1] | if ($fe.func->in([
+                                            concatenate_T_MANY__T_MANY__T_MANY_, union_T_MANY__T_MANY__T_MANY_, 
+                                            concatenate_TabularDataSet_1__TabularDataSet_1__TabularDataSet_1_,
+                                            concatenate_TabularDataSet_1__TabularDataSet_MANY__TabularDataSet_1_
+                                            ]),
                                        | $fe.parametersValues->at(0)->flattenConcatenate()->concatenate($fe.parametersValues->at(1)->flattenConcatenate()),
                                        | $fe
                                  );,
+      iv:InstanceValue[1]| $iv.values->match([
+                              v:ValueSpecification[*]|$v, 
+                              a:Any[*]| $iv
+                                ]),
       v:ValueSpecification[1] | $v
    ])
 }
@@ -2824,7 +2832,12 @@ function meta::relational::functions::pureToSqlQuery::addSelfJoin(s:SelectSQLQue
    let rootJtnAliasTablePks = $rootJtnAliasTable.second.values;
    let database = $rootJtnAliasTable.first;
 
-   let genJtnAliasName='gen_'+$rootJtnAlias->buildUniqueName(true, $extensions);
+   let genAliasSuffix = $rootJtn->match([
+      root: RootJoinTreeNode[1] | $root,
+      join: JoinTreeNode[1]     | ^RootJoinTreeNode(alias = ^TableAlias(name = 'fakeRoot', relationalElement = ^NamedRelation(name = 'fakeRoot')), childrenData = $join)
+   ])->buildUniqueName(false, $extensions);
+
+   let genJtnAliasName='gen_'+$genAliasSuffix;
    let genJtnAlias=^$rootJtnAlias(name=$genJtnAliasName);
 
    let oldAndNewReprocessedJoinJtns = $j->children()->cast(@JoinTreeNode)->map(c|
@@ -4941,10 +4954,13 @@ function meta::relational::functions::pureToSqlQuery::processTdsLambda(mapFn:Val
                         ];
 
                         let func = $dispatch->filter(d|$d.first == $f.func.functionName);
+                        
                         if($func->isNotEmpty(),
                                  |$func->toOne().second->cast(@meta::pure::metamodel::function::Function<{->RelationalOperationElement[*]}>)->eval(),
                                  |
-                                    if(findSupportedFunction($f, $state.supportedFunctions, $state.contextBasedSupportedFunctions)->isNotEmpty(),
+                                    let supportedFunction = findSupportedFunction($f, $state.supportedFunctions, $state.contextBasedSupportedFunctions);
+                                  
+                                    if($supportedFunction->isNotEmpty(),
                                        | if($f.func == extractEnumValue_Enumeration_1__String_1__T_1_,
                                             | ^Literal(value=extractEnumValue($f, $currentPropertyMapping, $context)),
                                             | if($f.func == meta::pure::functions::string::plus_String_MANY__String_1_,
@@ -4954,13 +4970,15 @@ function meta::relational::functions::pureToSqlQuery::processTdsLambda(mapFn:Val
                                                          let arg2 = $f.parametersValues->at(1)->processTdsLambda($a, $returnColumnName, $vars, $state, $currentPropertyMapping, $context);
                                                          let dynaParams = $arg1->concatenate($arg2->match([ll:Literal[*] | ^LiteralList(values = $ll), r:RelationalOperationElement[*] | $r]));
                                                          newDynaFunction($f.func.functionName->toOne(), $dynaParams);,
-                                                       | newDynaFunction($f.func.functionName->toOne(), $f.parametersValues->map(p|$p->processTdsLambda($a,$returnColumnName, $vars, $state, $currentPropertyMapping, $context)))
+                                                       | if ($supportedFunction == processNoOp_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_,
+                                                          | $f.parametersValues->at(0)->processTdsLambda($a,$returnColumnName, $vars, $state, $currentPropertyMapping, $context),
+                                                          | newDynaFunction($f.func.functionName->toOne(), $f.parametersValues->map(p|$p->processTdsLambda($a,$returnColumnName, $vars, $state, $currentPropertyMapping, $context))))
                                                    )
                                               )
                                             ),
                                        | fail('function ' + $f.func.name->makeString() + ' is not yet supported'); ^DynaFunction(name='fail');
                                        );
-                         );
+                         );                        
                      ,i:InstanceValue[1]| let transformedValues = $i.values->map(v | $v->match([
                                                           s:String[1] | ^Literal(value=$s),
                                                           n:Number[1] | ^Literal(value=$n),
@@ -7381,6 +7399,7 @@ function meta::relational::functions::pureToSqlQuery::getSupportedFunctions():Ma
         ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::project_T_MANY__Path_MANY__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processProjectPaths_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
         ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::project_T_MANY__ColumnSpecification_MANY__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processProjectColumns_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
         ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::concatenate_TabularDataSet_1__TabularDataSet_1__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processConcatenate_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
+        ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::concatenate_TabularDataSet_1__TabularDataSet_MANY__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processConcatenate_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
         ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::groupBy_TabularDataSet_1__String_MANY__AggregateValue_MANY__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processGroupBy_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
         ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::filter_TabularDataSet_1__Function_1__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processTdsFilter_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
         ^PureFunctionToRelationalFunctionPair(first=meta::pure::tds::distinct_TabularDataSet_1__TabularDataSet_1_, second=meta::relational::functions::pureToSqlQuery::processDistinct_FunctionExpression_1__PropertyMapping_MANY__SelectWithCursor_1__Map_1__State_1__JoinType_1__String_1__List_1__DebugContext_1__Extension_MANY__RelationalOperationElement_1_),
