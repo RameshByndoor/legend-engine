@@ -23,15 +23,29 @@ import org.finos.legend.engine.protocol.pure.v1.model.packageableElement.store.S
 
 import java.io.Closeable;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+
+/**
+ * Used to build connections using test data. Main goal is to leverage connection for execution
+ */
 public interface ConnectionFactoryExtension
 {
+
+    /**
+     * Deprecated as part of deprecated of Legacy Mapping Test
+     */
+    @Deprecated
     default Optional<Connection> tryBuildFromInputData(InputData inputData)
     {
         return Optional.empty();
     }
 
+    @Deprecated
+    /**
+     * Deprecated as part of deprecated of Legacy Service Test
+     */
     default Optional<Connection> tryBuildFromConnection(Connection connection, String testData, String element)
     {
         return Optional.empty();
@@ -42,8 +56,10 @@ public interface ConnectionFactoryExtension
         return Optional.empty();
     }
 
-    default Optional<Pair<Connection, List<Closeable>>> tryBuildTestConnectionsForStore(Store store, EmbeddedData data, List<DataElement> dataElementList)
+    default Optional<Pair<Connection, List<Closeable>>> tryBuildTestConnectionsForStore(Map<String, DataElement> dataElements, Store store, EmbeddedData data)
     {
         return Optional.empty();
     }
+
+
 }

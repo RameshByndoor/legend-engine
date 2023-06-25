@@ -19,10 +19,8 @@ import org.eclipse.collections.api.factory.Lists;
 import org.eclipse.collections.api.factory.Maps;
 import org.finos.legend.engine.protocol.pure.v1.extension.ProtocolSubTypeInfo;
 import org.finos.legend.engine.protocol.pure.v1.extension.PureProtocolExtension;
-import org.finos.legend.engine.protocol.pure.v1.model.data.DataElementReference;
-import org.finos.legend.engine.protocol.pure.v1.model.data.EmbeddedData;
-import org.finos.legend.engine.protocol.pure.v1.model.data.ExternalFormatData;
-import org.finos.legend.engine.protocol.pure.v1.model.data.ModelStoreData;
+import org.finos.legend.engine.protocol.pure.v1.model.data.*;
+import org.finos.legend.engine.protocol.pure.v1.model.data.ModelTestData;
 import org.finos.legend.engine.protocol.pure.v1.model.executionPlan.nodes.ExecutionNode;
 import org.finos.legend.engine.protocol.pure.v1.model.executionPlan.nodes.externalFormat.DataQualityExecutionNode;
 import org.finos.legend.engine.protocol.pure.v1.model.executionPlan.nodes.externalFormat.ExternalFormatExternalizeExecutionNode;
@@ -107,6 +105,10 @@ public class CorePureProtocolExtension implements PureProtocolExtension
                         .withSubtype(ExternalFormatData.class, "externalFormat")
                         .withSubtype(ModelStoreData.class, "modelStore")
                         .withSubtype(DataElementReference.class, "reference")
+                        .build(),
+                ProtocolSubTypeInfo.newBuilder(ModelTestData.class)
+                        .withSubtype(ModelEmbeddedTestData.class, "modelEmbeddedData")
+                        .withSubtype(ModelInstanceTestData.class, "modelInstanceData")
                         .build(),
                 // Test Assertion
                 ProtocolSubTypeInfo.newBuilder(TestAssertion.class)

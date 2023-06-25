@@ -15,9 +15,10 @@
 package org.finos.legend.engine.protocol.pure.v1.model.packageableElement.mapping.mappingTest;
 
 import org.finos.legend.engine.protocol.pure.v1.model.test.AtomicTest;
-import org.finos.legend.engine.protocol.pure.v1.model.valueSpecification.raw.Lambda;
+
+import java.util.List;
 
 public class MappingTest extends AtomicTest
 {
-    public Lambda query;
+    public List<StoreTestData> storeTestData;
 }

@@ -45,7 +45,28 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
     @Test
     public void testIncludeDispatch()
     {
-        test("###Mapping\n" +
+        testFormat("###Mapping\n" +
+                "Mapping meta::pure::mapping::modelToModel::test::simple::simpleModelMapping\n" +
+                "(\n" +
+                "  include mapping meta::pure::mapping::includedMapping\n" +
+                "  include mapping meta::pure::mapping::DispatchMapping\n" +
+                "\n" +
+                "  *meta::pure::mapping::modelToModel::test::shared::dest::Person[meta_pure_mapping_modelToModel_test_shared_dest_Person]: Pure\n" +
+                "  {\n" +
+                "    ~src meta::pure::mapping::modelToModel::test::shared::src::_S_Person\n" +
+                "    firstName: $src.fullName->substring(0, $src.fullName->indexOf(' ')),\n" +
+                "    lastName: $src.fullName->substring($src.fullName->indexOf(' ') + 1, $src.fullName->length()),\n" +
+                "    testing: if($src.fullName == 'johndoe', |if($src.lastName == 'good', |'true', |'maybe'), |'false')\n" +
+                "  }\n" +
+                "  *meta::pure::mapping::modelToModel::test::shared::dest::Product2Simple[meta_pure_mapping_modelToModel_test_shared_dest_Product2Simple]: Pure\n" +
+                "  {\n" +
+                "    ~src meta::pure::mapping::modelToModel::test::shared::src::_Product2\n" +
+                "    ~filter if($src.fullName == 'johndoe', |if($src.lastName == 'good', |true, |true), |false)\n" +
+                "    name: $src.name,\n" +
+                "    region: $src.region\n" +
+                "  }\n" +
+                ")\n",
+        "###Mapping\n" +
                 "Mapping meta::pure::mapping::modelToModel::test::simple::simpleModelMapping\n" +
                 "(\n" +
                 "  include meta::pure::mapping::includedMapping\n" +
@@ -69,7 +90,7 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
     }
 
     @Test
-    public void testMappingWithTests()
+    public void testMappingLegacyTests()
     {
         test("###Mapping\n" +
                 "Mapping meta::pure::mapping::modelToModel::test::simple::simpleModelMapping\n" +
@@ -108,6 +129,99 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
     }
 
     @Test
+    public void testSimpleTestSuite()
+    {
+        test("###Mapping\n" +
+                "Mapping testing::mapping\n" +
+                "(\n" +
+                "  *testing::Person[testing_Person]: Pure\n" +
+                "  {\n" +
+                "    ~src testing::other::NPerson\n" +
+                "    fullName: $src.firstName + ' ' + $src.lastName\n" +
+                "  }\n" +
+                "\n" +
+                "  testSuites:\n" +
+                "  [\n" +
+                "    testSuite1:\n" +
+                "    {\n" +
+                "      doc: 'myDoc';\n" +
+                "      function: |testing::Person.all()->graphFetch(#{testing::Person{fullName}}#);\n" +
+                "      tests:\n" +
+                "      [\n" +
+                "        test1:\n" +
+                "        {\n" +
+                "          doc: 'my test';\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            ModelStore:\n" +
+                "              ModelStore\n" +
+                "              #{\n" +
+                "                test::example::model:\n" +
+                "                  Reference\n" +
+                "                  #{\n" +
+                "                    testMapping::TestData\n" +
+                "                  }#\n" +
+                "              }#\n" +
+                "          ];\n" +
+                "          asserts:\n" +
+                "          [\n" +
+                "            assert1:\n" +
+                "              EqualToJson\n" +
+                "              #{\n" +
+                "                expected:\n" +
+                "                  ExternalFormat\n" +
+                "                  #{\n" +
+                "                    contentType: 'application/json';\n" +
+                "                    data: '{\"fullName\":[\"john doe\"]';\n" +
+                "                  }#;\n" +
+                "              }#\n" +
+                "          ];\n" +
+                "        }\n" +
+                "      ];\n" +
+                "    },\n" +
+                "    testSuite2:\n" +
+                "    {\n" +
+                "      doc: 'myDoc';\n" +
+                "      function: |testing::Person.all()->graphFetch(#{testing::Person{fullName}}#);\n" +
+                "      tests:\n" +
+                "      [\n" +
+                "        test1:\n" +
+                "        {\n" +
+                "          doc: 'my test';\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            ModelStore:\n" +
+                "              ModelStore\n" +
+                "              #{\n" +
+                "                test::example::model:\n" +
+                "                  Reference\n" +
+                "                  #{\n" +
+                "                    testMapping::TestData\n" +
+                "                  }#\n" +
+                "              }#\n" +
+                "          ];\n" +
+                "          asserts:\n" +
+                "          [\n" +
+                "            assert1:\n" +
+                "              EqualToJson\n" +
+                "              #{\n" +
+                "                expected:\n" +
+                "                  ExternalFormat\n" +
+                "                  #{\n" +
+                "                    contentType: 'application/json';\n" +
+                "                    data: '{\"fullName\":[\"john doe\"]';\n" +
+                "                  }#;\n" +
+                "              }#\n" +
+                "          ];\n" +
+                "        }\n" +
+                "      ];\n" +
+                "    }\n" +
+                "  ]\n" +
+                ")\n");
+
+    }
+
+    @Test
     public void testMappingWithTestSuites()
     {
         test("###Mapping\n" +
@@ -125,29 +239,98 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
                 "  [\n" +
                 "    testSuite1:\n" +
                 "    {\n" +
-                "      data:\n" +
-                "      [\n" +
-                "        test::db:\n" +
-                "          Reference\n" +
-                "          #{\n" +
-                "            testMapping::TestData\n" +
-                "          }#\n" +
-                "      ];\n" +
+                "      function: src: meta::pure::mapping::modelToModel::test::shared::src::_S_Person[1]|$src.a;\n" +
                 "      tests:\n" +
                 "      [\n" +
                 "        test1:\n" +
                 "        {\n" +
-                "          query: src: meta::pure::mapping::modelToModel::test::shared::src::_S_Person[1]|$src.a;\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            test::db:\n" +
+                "              Reference\n" +
+                "              #{\n" +
+                "                testMapping::TestData\n" +
+                "              }#\n" +
+                "          ];\n" +
                 "          asserts:\n" +
                 "          [\n" +
                 "            assert1:\n" +
                 "              EqualToJson\n" +
                 "              #{\n" +
-                "                expected : \n" +
+                "                expected:\n" +
                 "                  ExternalFormat\n" +
                 "                  #{\n" +
                 "                    contentType: 'application/json';\n" +
                 "                    data: '{ \"kerberos\": \"dummy kerberos\", \"employeeID\": \"dummy id\", \"title\": \"dummy title\", \"firstName\": \"dummy firstName\", \"lastName\": \"dummy lastname\", \"countryCode\": \"dummy countryCode\" }';\n" +
+                "                  }#;\n" +
+                "              }#\n" +
+                "          ];\n" +
+                "        }\n" +
+                "      ];\n" +
+                "    }\n" +
+                "  ]\n" +
+                ")\n");
+    }
+
+    @Test
+    public void testMappingTestableAndLegacyTests()
+    {
+        test("###Mapping\n" +
+                "Mapping meta::pure::mapping::modelToModel::test::simple::simpleModelMapping\n" +
+                "(\n" +
+                "  *meta::pure::mapping::modelToModel::test::shared::dest::Person[meta_pure_mapping_modelToModel_test_shared_dest_Person]: Pure\n" +
+                "  {\n" +
+                "    ~src meta::pure::mapping::modelToModel::test::shared::src::_S_Person\n" +
+                "    firstName: $src.fullName->substring(0, $src.fullName->indexOf(' ')),\n" +
+                "    lastName: $src.fullName->substring($src.fullName->indexOf(' ') + 1, $src.fullName->length()),\n" +
+                "    testing: if($src.fullName == 'johndoe', |if($src.lastName == 'good', |'true', |'maybe'), |'false')\n" +
+                "  }\n" +
+                "\n" +
+                "  MappingTests\n" +
+                "  [\n" +
+                "    test1\n" +
+                "    (\n" +
+                "      query: src: meta::slang::transform::tests::Address[1]|$src.a;\n" +
+                "      data:\n" +
+                "      [\n" +
+                "      ];\n" +
+                "      assert: 'assertString';\n" +
+                "    )\n" +
+                "  ]\n" +
+                "\n" +
+                "  testSuites:\n" +
+                "  [\n" +
+                "    testSuite1:\n" +
+                "    {\n" +
+                "      doc: 'myDoc';\n" +
+                "      function: |testing::Person.all()->graphFetch(#{testing::Person{fullName}}#);\n" +
+                "      tests:\n" +
+                "      [\n" +
+                "        test1:\n" +
+                "        {\n" +
+                "          doc: 'my test';\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            ModelStore:\n" +
+                "              ModelStore\n" +
+                "              #{\n" +
+                "                test::example::model:\n" +
+                "                  Reference\n" +
+                "                  #{\n" +
+                "                    testMapping::TestData\n" +
+                "                  }#\n" +
+                "              }#\n" +
+                "          ];\n" +
+                "          asserts:\n" +
+                "          [\n" +
+                "            assert1:\n" +
+                "              EqualToJson\n" +
+                "              #{\n" +
+                "                expected:\n" +
+                "                  ExternalFormat\n" +
+                "                  #{\n" +
+                "                    contentType: 'application/json';\n" +
+                "                    data: '{\"fullName\":[\"john doe\"]';\n" +
                 "                  }#;\n" +
                 "              }#\n" +
                 "          ];\n" +
@@ -176,34 +359,36 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
                 "  [\n" +
                 "    testSuite1:\n" +
                 "    {\n" +
-                "      data:\n" +
-                "      [\n" +
-                "        ModelStore:\n" +
-                "          ModelStore\n" +
-                "          #{\n" +
-                "            meta::pure::mapping::modelToModel::test::shared::src::_S_Firm:\n" +
-                "              Reference\n" +
-                "              #{\n" +
-                "                testMapping::Firm::TestData\n" +
-                "              }#,\n" +
-                "            meta::pure::mapping::modelToModel::test::shared::src::_S_Person:\n" +
-                "              Reference\n" +
-                "              #{\n" +
-                "                testMapping::Person::TestData\n" +
-                "              }#\n" +
-                "          }#\n" +
-                "      ];\n" +
+                "      doc: 'myDoc';\n" +
+                "      function: src: meta::pure::mapping::modelToModel::test::shared::src::_S_Person[1]|$src.a;\n" +
                 "      tests:\n" +
                 "      [\n" +
                 "        test1:\n" +
                 "        {\n" +
-                "          query: src: meta::pure::mapping::modelToModel::test::shared::src::_S_Person[1]|$src.a;\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            ModelStore:\n" +
+                "              ModelStore\n" +
+                "              #{\n" +
+                "                meta::pure::mapping::modelToModel::test::shared::src::_S_Firm:\n" +
+                "                  Reference\n" +
+                "                  #{\n" +
+                "                    testMapping::Firm::TestData\n" +
+                "                  }#,\n" +
+                "                meta::pure::mapping::modelToModel::test::shared::src::_S_Person:\n" +
+                "                  ExternalFormat\n" +
+                "                  #{\n" +
+                "                    contentType: 'application/json';\n" +
+                "                    data: '{ \"kerberos\": \"dummy kerberos\", \"employeeID\": \"dummy id\", \"title\": \"dummy title\", \"firstName\": \"dummy firstName\", \"lastName\": \"dummy lastname\", \"countryCode\": \"dummy countryCode\" }';\n" +
+                "                  }#\n" +
+                "              }#\n" +
+                "          ];\n" +
                 "          asserts:\n" +
                 "          [\n" +
                 "            assert1:\n" +
                 "              EqualToJson\n" +
                 "              #{\n" +
-                "                expected : \n" +
+                "                expected:\n" +
                 "                  ExternalFormat\n" +
                 "                  #{\n" +
                 "                    contentType: 'application/json';\n" +
@@ -214,13 +399,30 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
                 "        },\n" +
                 "        test2:\n" +
                 "        {\n" +
-                "          query: src: meta::slang::transform::tests::Address[1]|$src.b;\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            ModelStore:\n" +
+                "              ModelStore\n" +
+                "              #{\n" +
+                "                meta::pure::mapping::modelToModel::test::shared::src::_S_Firm:\n" +
+                "                  Reference\n" +
+                "                  #{\n" +
+                "                    testMapping::Firm::TestData\n" +
+                "                  }#,\n" +
+                "                meta::pure::mapping::modelToModel::test::shared::src::_S_Person:\n" +
+                "                  ExternalFormat\n" +
+                "                  #{\n" +
+                "                    contentType: 'application/json';\n" +
+                "                    data: '{ \"kerberos\": \"dummy kerberos\", \"employeeID\": \"dummy id\", \"title\": \"dummy title\", \"firstName\": \"dummy firstName\", \"lastName\": \"dummy lastname\", \"countryCode\": \"dummy countryCode\" }';\n" +
+                "                  }#\n" +
+                "              }#\n" +
+                "          ];\n" +
                 "          asserts:\n" +
                 "          [\n" +
                 "            assert1:\n" +
                 "              EqualToJson\n" +
                 "              #{\n" +
-                "                expected : \n" +
+                "                expected:\n" +
                 "                  ExternalFormat\n" +
                 "                  #{\n" +
                 "                    contentType: 'application/json';\n" +
@@ -253,29 +455,29 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
                 "  [\n" +
                 "    testSuite1:\n" +
                 "    {\n" +
-                "      data:\n" +
-                "      [\n" +
-                "        ModelStore:\n" +
-                "          ModelStore\n" +
-                "          #{\n" +
-                "            meta::pure::mapping::modelToModel::test::shared::src::_S_Person:\n" +
-                "              Reference\n" +
-                "              #{\n" +
-                "                testMapping::Person::TestData\n" +
-                "              }#\n" +
-                "          }#\n" +
-                "      ];\n" +
+                "      function: src: meta::pure::mapping::modelToModel::test::shared::src::_S_Person[1]|$src.a;\n" +
                 "      tests:\n" +
                 "      [\n" +
                 "        test1:\n" +
                 "        {\n" +
-                "          query: src: meta::pure::mapping::modelToModel::test::shared::src::_S_Person[1]|$src.a;\n" +
+                "          data:\n" +
+                "          [\n" +
+                "            ModelStore:\n" +
+                "              ModelStore\n" +
+                "              #{\n" +
+                "                meta::pure::mapping::modelToModel::test::shared::src::_S_Person:\n" +
+                "                  Reference\n" +
+                "                  #{\n" +
+                "                    testMapping::Person::TestData\n" +
+                "                  }#\n" +
+                "              }#\n" +
+                "          ];\n" +
                 "          asserts:\n" +
                 "          [\n" +
                 "            assert1:\n" +
                 "              EqualToJson\n" +
                 "              #{\n" +
-                "                expected : \n" +
+                "                expected:\n" +
                 "                  ExternalFormat\n" +
                 "                  #{\n" +
                 "                    contentType: 'application/json';\n" +
@@ -285,7 +487,7 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
                 "            assert2:\n" +
                 "              EqualToJson\n" +
                 "              #{\n" +
-                "                expected : \n" +
+                "                expected:\n" +
                 "                  ExternalFormat\n" +
                 "                  #{\n" +
                 "                    contentType: 'application/json';\n" +
@@ -478,7 +680,7 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
     @Test
     public void testMappingWithImport()
     {
-        test("Class anything::goes\n" +
+        testWithSectionInfoPreserved("Class anything::goes\n" +
                 "{\n" +
                 "  name: String[*];\n" +
                 "}\n" +
@@ -639,8 +841,7 @@ public class TestMappingGrammarRoundtrip extends TestGrammarRoundtrip.TestGramma
     @Test
     public void testAggregationAware()
     {
-        test("###Pure\n" +
-                "Class test::Product\n" +
+        test("Class test::Product\n" +
                 "{\n" +
                 "  id: Integer[1];\n" +
                 "  producer: test::Person[1];\n" +

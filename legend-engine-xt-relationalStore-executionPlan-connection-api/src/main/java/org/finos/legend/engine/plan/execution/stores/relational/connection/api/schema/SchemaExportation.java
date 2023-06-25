@@ -32,7 +32,6 @@ import org.finos.legend.engine.plan.execution.stores.relational.connection.api.s
 import org.finos.legend.engine.plan.execution.stores.relational.connection.api.schema.model.DatabaseBuilderInput;
 import org.finos.legend.engine.plan.execution.stores.relational.connection.api.schema.model.DatabasePattern;
 import org.finos.legend.engine.plan.execution.stores.relational.connection.manager.ConnectionManagerSelector;
-import org.finos.legend.engine.protocol.pure.v1.model.packageableElement.store.relational.connection.specification.SnowflakeDatasourceSpecification;
 import org.finos.legend.engine.protocol.pure.v1.model.packageableElement.store.relational.model.Column;
 import org.finos.legend.engine.protocol.pure.v1.model.packageableElement.store.relational.model.Database;
 import org.finos.legend.engine.protocol.pure.v1.model.packageableElement.store.relational.model.Schema;
@@ -54,8 +53,7 @@ import java.util.function.Predicate;
 
 public class SchemaExportation
 {
-
-    private DatabaseBuilderInput databaseBuilderInput;
+    private final DatabaseBuilderInput databaseBuilderInput;
     private static final String ESCAPE_CHARS = " :";
     private static final ObjectMapper objectMapper = ObjectMapperFactory.getNewStandardObjectMapperWithPureProtocolExtensionSupports()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -96,9 +94,8 @@ public class SchemaExportation
             Tuples.pair(Types.CHAR, size -> createDataType("Char", size,
                     org.finos.legend.engine.protocol.pure.v1.model.packageableElement.store.relational.model.datatype.Char.class))
     );
-    private static final String[] TABLES_TYPES = new String[] {"TABLE", "VIEW"};
+    private static final String[] TABLES_TYPES = new String[]{"TABLE", "VIEW"};
     private static final String DEFAULT_SCHEMA = "default";
-
 
     SchemaExportation(DatabaseBuilderInput storeBuilderInput)
     {
@@ -128,7 +125,7 @@ public class SchemaExportation
             database.name = this.databaseBuilderInput.targetDatabase.name;
             if (config.patterns == null || config.patterns.isEmpty())
             {
-                config.setPatterns(FastList.newListWith(new DatabasePattern(null, null)));
+                return database;
             }
             this.preProcessInput(this.databaseBuilderInput);
             database.schemas = FastList.newList();
@@ -367,11 +364,14 @@ public class SchemaExportation
 
     private void preProcessInput(DatabaseBuilderInput storeInput)
     {
+        /*
+        // TODO - is this a feature flag to allow this feature only for Snowflake ??
         if (storeInput.connection.datasourceSpecification instanceof SnowflakeDatasourceSpecification)
         {
             SnowflakeDatasourceSpecification snowflakeDatasourceSpecification = (SnowflakeDatasourceSpecification) storeInput.connection.datasourceSpecification;
             storeInput.config.setPatterns(ListIterate.collect(storeInput.config.getPatterns(), p -> p.withNewCatalog(snowflakeDatasourceSpecification.databaseName)));
         }
+         */
     }
 
     public static String escapeString(String s)
