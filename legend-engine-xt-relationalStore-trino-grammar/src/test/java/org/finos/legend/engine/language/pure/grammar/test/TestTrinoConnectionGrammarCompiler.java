@@ -14,6 +14,7 @@
 
 package org.finos.legend.engine.language.pure.grammar.test;
 
+import org.antlr.v4.runtime.Vocabulary;
 import org.finos.legend.engine.language.pure.compiler.test.TestCompilationFromGrammar;
 import org.junit.Test;
 
@@ -60,6 +61,37 @@ public class TestTrinoConnectionGrammarCompiler
     protected String getDuplicatedElementTestExpectedErrorMessage()
     {
         return null;
+    }
+
+    @Test
+    public void testGetParserErrorWrongProperty()
+    {
+        test("###TrinoApp\n" +
+                "TrinoApp x::A\n" +
+                "{\n" +
+                "   applicatioName : 'sass';\n" +
+                "}\n", "PARSER error at [4:4-17]: Unexpected token 'applicatioName'. Valid alternatives: ['applicationName', 'description', 'function', 'owner']");
+    }
+
+    @Test
+    public void testGetParserErrorMissingApplicationName()
+    {
+        test("###Trino\n" +
+                "TrinoApp x::A\n" +
+                "{\n" +
+                "   owner : 'pierre';\n" +
+                "}\n", "PARSER error at [2:1-5:1]: Field 'applicationName' is required");
+    }
+
+    @Test
+    public void testGetParserErrorMissingFunction()
+    {
+        test("###Trino\n" +
+                "TrinoApp x::A\n" +
+                "{\n" +
+                "   applicationName : 'MyApp';\n" +
+                "   owner : 'pierre';\n" +
+                "}\n", "PARSER error at [2:1-6:1]: Field 'function' is required");
     }
 }
 
